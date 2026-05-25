@@ -2,26 +2,43 @@
 
 Bare metal I2C master driver for the **NXP LPC1768** (ARM Cortex-M3) that interfaces with a **16x2 HD44780 LCD** through the **PCF8574T I2C-to-parallel I/O expander**.
 
-All code is written at the register level — no HAL, no Mbed OS, no vendor libraries. Pure bare metal.
+All driver code is written at the register level — no HAL, no Mbed API calls. Pure bare metal.
+The Mbed library is used only for CMSIS headers (`LPC17xx.h`) and startup code.
 
 ## 📁 Project Structure
 
 ```
 lpc1768-i2c-lcd/
-├── lpc1768-i2c-lcd.csolution.yml   ← CMSIS solution (Keil Studio Cloud)
-├── lpc1768-i2c-lcd.cproject.yml    ← CMSIS project definition
-├── lpc1768-i2c-lcd.cdefault.yml    ← Compiler defaults
+├── .mbed               ← Target config (LPC1768 / ARM Compiler)
+├── mbed.bld            ← Mbed 2 library reference
 ├── .gitignore
 ├── README.md
-└── src/
-    ├── main.c          ← Application entry point & demo
-    ├── i2c.c           ← I2C0 master driver (register-level)
-    ├── i2c.h           ← I2C driver API & status codes
-    ├── lcd_i2c.c       ← LCD control via PCF8574T
-    ├── lcd_i2c.h       ← LCD API & HD44780 command definitions
-    ├── delay.c          ← SysTick-based delay (polling)
-    └── delay.h          ← Delay function prototypes
+├── main.c              ← Application entry point & demo
+├── i2c.c               ← I2C0 master driver (register-level)
+├── i2c.h               ← I2C driver API & status codes
+├── lcd_i2c.c           ← LCD control via PCF8574T
+├── lcd_i2c.h           ← LCD API & HD44780 commands
+├── delay.c             ← SysTick-based delay (polling)
+└── delay.h             ← Delay function prototypes
 ```
+
+## 🚀 Importing into Keil Studio Cloud (Mbed)
+
+### Method 1: Clone from GitHub (Recommended)
+
+1. Go to [Keil Studio Cloud](https://studio.keil.arm.com)
+2. Click **File → Clone...**
+3. Paste: `https://github.com/drik245/lpc_masterI2C.git`
+4. Open the `lpc1768-i2c-lcd` folder as the active project
+5. The IDE will automatically import the Mbed library from `mbed.bld`
+6. Set target to **LPC1768** (bottom-left of IDE)
+7. Click **Build** (hammer icon)
+
+### Method 2: Import from Mbed Compiler
+
+1. Go to [Keil Studio Cloud](https://studio.keil.arm.com)
+2. Click **File → Import from Mbed Online Compiler...**
+3. Follow the prompts to import from your Mbed repo
 
 ## 🔧 Hardware Connections
 
@@ -52,36 +69,6 @@ lpc1768-i2c-lcd/
 ### Default I2C Address
 
 The PCF8574T default address is **0x27** (A0=A1=A2 connected to VCC). If your module uses a different address, modify `PCF8574T_ADDR` in `lcd_i2c.h`.
-
-## 🚀 Importing into Keil Studio Cloud
-
-### Method 1: Import from GitHub (Recommended)
-
-1. Push this project to a GitHub repository
-2. Go to [Keil Studio Cloud](https://studio.keil.arm.com)
-3. Click **File → Import Project**
-4. Paste your GitHub repository URL
-5. The IDE will automatically detect the `.csolution.yml` and configure the project
-6. Install required packs when prompted:
-   - `ARM::CMSIS` (v5.9.0+)
-   - `Keil::LPC1700_DFP` (v2.7.1+)
-7. Click **Build** (hammer icon)
-
-### Method 2: Manual Import
-
-1. Go to [Keil Studio Cloud](https://studio.keil.arm.com)
-2. Click **File → New Project → From Template → Empty CSOLUTION project**
-3. Select device: **NXP LPC1768**
-4. Copy the `src/` folder files into the project
-5. Replace the generated `.csolution.yml` and `.cproject.yml` with the ones from this repo
-6. Build the project
-
-### Method 3: Keil µVision (Desktop IDE)
-
-1. Create a new µVision project for **NXP LPC1768**
-2. Add the CMSIS startup files when prompted
-3. Add all files from the `src/` folder to your project
-4. Build (F7)
 
 ## 📋 Driver API Reference
 
@@ -142,7 +129,7 @@ The I2C driver uses the LPC1768 hardware state machine. Key status codes:
 |-------------------|---------------|-----------|----------------------------|
 | I2C Address       | `lcd_i2c.h`  | `0x27`    | PCF8574T slave address     |
 | I2C Speed         | `main.c`     | 100 kHz   | Standard mode              |
-| System Clock      | CMSIS startup | 100 MHz   | LPC1768 PLL configuration  |
+| System Clock      | Mbed startup  | 100 MHz   | LPC1768 PLL configuration  |
 | I2C PCLK          | `i2c.c`      | 25 MHz    | CCLK/4 (default divider)   |
 
 ## 🔬 Troubleshooting
@@ -155,6 +142,7 @@ The I2C driver uses the LPC1768 hardware state machine. Key status codes:
 | Backlight off                | BL jumper on module removed        | Check BL jumper or call `LCD_I2C_Backlight(1)` |
 | I2C hangs                    | Missing pull-up resistors          | Add 4.7kΩ pull-ups on SDA & SCL            |
 | No ACK from PCF8574T         | Wiring or power issue              | Check VCC, GND, SDA, SCL connections       |
+| Build errors in Keil Studio  | Mbed library not imported          | Right-click project → Add Mbed Library     |
 
 ## 📜 License
 

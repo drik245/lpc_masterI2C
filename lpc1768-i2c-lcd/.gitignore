@@ -1,6 +1,6 @@
 # Build output
+BUILD/
 out/
-tmp/
 *.o
 *.d
 *.axf
@@ -13,7 +13,10 @@ tmp/
 *.log
 *.bak
 
-# Keil project files (generated)
+# Mbed library (imported by IDE from mbed.bld)
+mbed/
+
+# Keil / IDE files
 *.uvprojx
 *.uvoptx
 *.uvguix.*
@@ -21,11 +24,10 @@ RTE/_*/
 Objects/
 Listings/
 DebugConfig/
-
-# IDE files
 .vscode/
 .settings/
 *.jlink
+compile_commands.json
 
 # OS files
 Thumbs.db
