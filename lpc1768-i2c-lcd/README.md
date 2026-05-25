@@ -1,0 +1,161 @@
+# LPC1768 Bare Metal I2C Master — 16x2 LCD via PCF8574T
+
+Bare metal I2C master driver for the **NXP LPC1768** (ARM Cortex-M3) that interfaces with a **16x2 HD44780 LCD** through the **PCF8574T I2C-to-parallel I/O expander**.
+
+All code is written at the register level — no HAL, no Mbed OS, no vendor libraries. Pure bare metal.
+
+## 📁 Project Structure
+
+```
+lpc1768-i2c-lcd/
+├── lpc1768-i2c-lcd.csolution.yml   ← CMSIS solution (Keil Studio Cloud)
+├── lpc1768-i2c-lcd.cproject.yml    ← CMSIS project definition
+├── lpc1768-i2c-lcd.cdefault.yml    ← Compiler defaults
+├── .gitignore
+├── README.md
+└── src/
+    ├── main.c          ← Application entry point & demo
+    ├── i2c.c           ← I2C0 master driver (register-level)
+    ├── i2c.h           ← I2C driver API & status codes
+    ├── lcd_i2c.c       ← LCD control via PCF8574T
+    ├── lcd_i2c.h       ← LCD API & HD44780 command definitions
+    ├── delay.c          ← SysTick-based delay (polling)
+    └── delay.h          ← Delay function prototypes
+```
+
+## 🔧 Hardware Connections
+
+### I2C Bus Wiring
+
+| LPC1768 Pin | Function | Connection       |
+|-------------|----------|------------------|
+| P0.27       | SDA0     | PCF8574T SDA     |
+| P0.28       | SCL0     | PCF8574T SCL     |
+| 3.3V        | VCC      | PCF8574T VCC     |
+| GND         | GND      | PCF8574T GND     |
+
+> **Note:** Most PCF8574T LCD adapter modules include on-board 4.7kΩ pull-up resistors. If your module doesn't, add external 4.7kΩ pull-ups on SDA and SCL to 3.3V.
+
+### PCF8574T → LCD Pin Mapping
+
+| PCF8574T Pin | LCD Pin | Function         |
+|--------------|---------|------------------|
+| P0           | RS      | Register Select  |
+| P1           | RW      | Read/Write       |
+| P2           | EN      | Enable           |
+| P3           | BL      | Backlight        |
+| P4           | D4      | Data Bit 4       |
+| P5           | D5      | Data Bit 5       |
+| P6           | D6      | Data Bit 6       |
+| P7           | D7      | Data Bit 7       |
+
+### Default I2C Address
+
+The PCF8574T default address is **0x27** (A0=A1=A2 connected to VCC). If your module uses a different address, modify `PCF8574T_ADDR` in `lcd_i2c.h`.
+
+## 🚀 Importing into Keil Studio Cloud
+
+### Method 1: Import from GitHub (Recommended)
+
+1. Push this project to a GitHub repository
+2. Go to [Keil Studio Cloud](https://studio.keil.arm.com)
+3. Click **File → Import Project**
+4. Paste your GitHub repository URL
+5. The IDE will automatically detect the `.csolution.yml` and configure the project
+6. Install required packs when prompted:
+   - `ARM::CMSIS` (v5.9.0+)
+   - `Keil::LPC1700_DFP` (v2.7.1+)
+7. Click **Build** (hammer icon)
+
+### Method 2: Manual Import
+
+1. Go to [Keil Studio Cloud](https://studio.keil.arm.com)
+2. Click **File → New Project → From Template → Empty CSOLUTION project**
+3. Select device: **NXP LPC1768**
+4. Copy the `src/` folder files into the project
+5. Replace the generated `.csolution.yml` and `.cproject.yml` with the ones from this repo
+6. Build the project
+
+### Method 3: Keil µVision (Desktop IDE)
+
+1. Create a new µVision project for **NXP LPC1768**
+2. Add the CMSIS startup files when prompted
+3. Add all files from the `src/` folder to your project
+4. Build (F7)
+
+## 📋 Driver API Reference
+
+### I2C Driver (`i2c.h`)
+
+```c
+void    I2C0_Init(uint32_t clock_hz);      // Init I2C0, e.g., 100000 for 100kHz
+uint8_t I2C0_Start(void);                  // Send START condition
+uint8_t I2C0_RepeatedStart(void);          // Send repeated START
+void    I2C0_Stop(void);                   // Send STOP condition
+uint8_t I2C0_Write(uint8_t data);          // Write one byte (addr or data)
+uint8_t I2C0_ReadACK(uint8_t *data);       // Read byte with ACK
+uint8_t I2C0_ReadNACK(uint8_t *data);      // Read byte with NACK (last byte)
+uint8_t I2C0_WriteBuffer(uint8_t addr, const uint8_t *buf, uint32_t len);
+uint8_t I2C0_ReadBuffer(uint8_t addr, uint8_t *buf, uint32_t len);
+```
+
+### LCD Driver (`lcd_i2c.h`)
+
+```c
+void LCD_I2C_Init(void);                   // Initialize LCD (4-bit mode via I2C)
+void LCD_I2C_Command(uint8_t cmd);         // Send command byte
+void LCD_I2C_Data(uint8_t data);           // Send data (character) byte
+void LCD_I2C_Print(const char *str);       // Print null-terminated string
+void LCD_I2C_SetCursor(uint8_t row, uint8_t col);  // Set cursor (row: 0-1, col: 0-15)
+void LCD_I2C_Clear(void);                  // Clear display
+void LCD_I2C_Home(void);                   // Cursor to (0,0)
+void LCD_I2C_Backlight(uint8_t on);        // Backlight ON(1) / OFF(0)
+void LCD_I2C_CreateChar(uint8_t loc, const uint8_t pattern[8]);  // Custom char
+```
+
+### Delay Functions (`delay.h`)
+
+```c
+void Delay_Init(void);         // Initialize (call once at startup)
+void Delay_us(uint32_t us);    // Blocking microsecond delay
+void Delay_ms(uint32_t ms);    // Blocking millisecond delay
+```
+
+## ⚙️ I2C State Machine
+
+The I2C driver uses the LPC1768 hardware state machine. Key status codes:
+
+| Code   | State                          | Next Action              |
+|--------|--------------------------------|--------------------------|
+| `0x08` | START transmitted              | Send SLA+R/W             |
+| `0x10` | Repeated START transmitted     | Send SLA+R/W             |
+| `0x18` | SLA+W sent, ACK received       | Send data                |
+| `0x20` | SLA+W sent, NACK received      | STOP or retry            |
+| `0x28` | Data sent, ACK received        | Send more data or STOP   |
+| `0x40` | SLA+R sent, ACK received       | Receive data with ACK    |
+| `0x50` | Data received, ACK returned    | Receive more data        |
+| `0x58` | Data received, NACK returned   | STOP (last byte)         |
+
+## 📌 Configuration
+
+| Parameter         | File          | Default   | Description                |
+|-------------------|---------------|-----------|----------------------------|
+| I2C Address       | `lcd_i2c.h`  | `0x27`    | PCF8574T slave address     |
+| I2C Speed         | `main.c`     | 100 kHz   | Standard mode              |
+| System Clock      | CMSIS startup | 100 MHz   | LPC1768 PLL configuration  |
+| I2C PCLK          | `i2c.c`      | 25 MHz    | CCLK/4 (default divider)   |
+
+## 🔬 Troubleshooting
+
+| Issue                        | Possible Cause                     | Solution                                   |
+|------------------------------|------------------------------------|--------------------------------------------|
+| LCD shows nothing            | Wrong I2C address                  | Try `0x27`, `0x3F`, or scan with I2C scanner |
+| LCD shows blocks on row 1    | Initialization timing              | Increase power-on delay in `LCD_I2C_Init()` |
+| Garbled text                 | I2C speed too fast                 | Use 100 kHz (standard mode)                |
+| Backlight off                | BL jumper on module removed        | Check BL jumper or call `LCD_I2C_Backlight(1)` |
+| I2C hangs                    | Missing pull-up resistors          | Add 4.7kΩ pull-ups on SDA & SCL            |
+| No ACK from PCF8574T         | Wiring or power issue              | Check VCC, GND, SDA, SCL connections       |
+
+## 📜 License
+
+This project is provided as-is for educational purposes. Free to use and modify.

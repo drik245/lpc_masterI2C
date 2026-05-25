@@ -1,0 +1,10 @@
+default:
+  compiler: AC6
+  misc:
+    - for-compiler: AC6
+      C:
+        - -std=c99
+        - -O1
+        - -Wno-license-management
+      Link:
+        - --entry=Reset_Handler

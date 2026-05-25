@@ -1,0 +1,32 @@
+# Build output
+out/
+tmp/
+*.o
+*.d
+*.axf
+*.hex
+*.bin
+*.elf
+*.map
+*.lst
+*.htm
+*.log
+*.bak
+
+# Keil project files (generated)
+*.uvprojx
+*.uvoptx
+*.uvguix.*
+RTE/_*/
+Objects/
+Listings/
+DebugConfig/
+
+# IDE files
+.vscode/
+.settings/
+*.jlink
+
+# OS files
+Thumbs.db
+.DS_Store
